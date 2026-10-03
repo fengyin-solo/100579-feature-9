@@ -85,13 +85,24 @@ const meta = moduleMeta('settingvalue')
 const columns = ["定值单号", "所属装置", "定值项目", "整定值", "计算依据", "整定人", "审核人", "定值状态"]
 const actions = ["提交整定", "审核定值", "作废定值"]
 const statuses = ["待整定", "整定中", "已审核", "已作废"]
-const stats = [{"label": "待整定定值单", "value": 0}, {"label": "整定中定值单", "value": 0}, {"label": "已作废定值单", "value": 0}]
+const statRules = [
+  { label: '待整定定值单', status: '待整定' },
+  { label: '整定中定值单', status: '整定中' },
+  { label: '已作废定值单', status: '已作废' },
+]
 
 const rows = ref<EntryRow[]>([])
 const total = ref(0)
 const errorMessage = ref('')
 const filters = ref<Record<string, string>>({})
 const filterFields = columns.slice(0, 3)
+// 统计卡按当前列表实算：核对不符联动进来的待整定待办会立刻体现在「待整定定值单」上。
+const stats = computed(() =>
+  statRules.map((rule) => ({
+    label: rule.label,
+    value: rows.value.filter((row) => String(row.status) === rule.status).length,
+  })),
+)
 const statusSummary = computed(() =>
   statuses.map((status: string) => ({
     status,

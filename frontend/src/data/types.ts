@@ -36,3 +36,26 @@ export type OverviewResult = {
   cards: { label: string; value: number }[]
   modules: { name: string; created: number; pending: number; abnormal: number }[]
 }
+
+// 定值核对看板：按所属变电站分行、核对结论分栏，栏内按装置名称归集。
+export type SettingcheckBoardGroup = {
+  device: string
+  checker: string
+  items: EntryRow[]
+}
+
+export type SettingcheckBoardCell = {
+  conclusion: string
+  groups: SettingcheckBoardGroup[]
+}
+
+export type SettingcheckBoardRow = {
+  station: string
+  cells: SettingcheckBoardCell[]
+}
+
+export type SettingcheckBoard = {
+  conclusions: string[]
+  rows: SettingcheckBoardRow[]
+  totals: Record<string, number>
+}

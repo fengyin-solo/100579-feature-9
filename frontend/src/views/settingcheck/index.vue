@@ -24,6 +24,57 @@
       </span>
     </p>
 
+    <section class="board" aria-label="核对结论看板">
+      <header class="board-head">
+        <h3>核对结论看板</h3>
+        <p class="board-desc">
+          按所属变电站分行、核对结论分栏，核对不符排在最前一栏，核对一致收进末栏；结论只按现场实测值判定，与台账定值不一致即不符。
+        </p>
+      </header>
+      <table class="data-table board-table">
+        <thead>
+          <tr>
+            <th class="station-col">所属变电站</th>
+            <th
+              v-for="conclusion in board.conclusions"
+              :key="conclusion"
+              :class="conclusionClass(conclusion)"
+            >
+              {{ conclusion }}（{{ board.totals[conclusion] ?? 0 }}）
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="stationRow in board.rows" :key="stationRow.station">
+            <th class="station-col">{{ stationRow.station }}</th>
+            <td
+              v-for="cell in stationRow.cells"
+              :key="cell.conclusion"
+              :class="conclusionClass(cell.conclusion)"
+            >
+              <article v-for="group in cell.groups" :key="group.device" class="device-group">
+                <h4 class="device-name">{{ group.device }}</h4>
+                <ul class="check-items">
+                  <li v-for="item in group.items" :key="String(item.id)" class="check-item">
+                    <span class="check-code">{{ item['核对编号'] }}</span>
+                    <span>现场定值：{{ item['现场定值'] }}</span>
+                    <span>台账定值：{{ item['台账定值'] }}</span>
+                  </li>
+                </ul>
+                <p class="checker-sign">核对人签字：{{ group.checker }}</p>
+              </article>
+              <span v-if="!cell.groups.length" class="empty-cell">—</span>
+            </td>
+          </tr>
+          <tr v-if="!board.rows.length">
+            <td :colspan="board.conclusions.length + 1" class="empty-state">
+              暂无定值核对数据，可先登记核对记录
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
     <form class="filter-bar" @submit.prevent="reload">
       <label v-for="field in filterFields" :key="field" class="filter-item">
         <span>{{ field }}</span>
@@ -78,26 +129,43 @@ import {
   listEntries,
   moduleMeta,
   runAction as applyAction,
+  settingcheckBoard,
 } from '@/api/local-service'
-import type { EntryRow } from '@/data/types'
+import type { EntryRow, SettingcheckBoard } from '@/data/types'
 
 const meta = moduleMeta('settingcheck')
 const columns = ["核对编号", "所属变电站", "装置名称", "现场定值", "台账定值", "核对人", "核对日期", "核对状态"]
 const actions = ["提交核对", "确认一致", "标记不符"]
 const statuses = ["待核对", "核对中", "核对一致", "核对不符"]
-const stats = [{"label": "待核对装置", "value": 0}, {"label": "核对一致装置", "value": 0}, {"label": "核对不符装置", "value": 0}]
 
 const rows = ref<EntryRow[]>([])
 const total = ref(0)
 const errorMessage = ref('')
 const filters = ref<Record<string, string>>({})
 const filterFields = columns.slice(0, 3)
+const board = ref<SettingcheckBoard>({ conclusions: [], rows: [], totals: {} })
+// 统计卡按核对结论实算：待出结论的算待核对，一致/不符以现场实测判定为准。
+const stats = computed(() => [
+  {
+    label: '待核对装置',
+    value: (board.value.totals['待核对'] ?? 0) + (board.value.totals['核对中'] ?? 0),
+  },
+  { label: '核对一致装置', value: board.value.totals['核对一致'] ?? 0 },
+  { label: '核对不符装置', value: board.value.totals['核对不符'] ?? 0 },
+])
 const statusSummary = computed(() =>
   statuses.map((status: string) => ({
     status,
     count: rows.value.filter((row) => String(row.status) === status).length,
   })),
 )
+
+function conclusionClass(conclusion: string) {
+  return {
+    'cell-mismatch': conclusion === '核对不符',
+    'cell-consistent': conclusion === '核对一致',
+  }
+}
 
 function resetFilters() {
   filters.value = {}
@@ -128,6 +196,7 @@ function reload() {
     const payload = listEntries(meta.key, filters.value)
     rows.value = payload.items
     total.value = payload.total
+    board.value = settingcheckBoard()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '定值核对列表读取失败'
   }
