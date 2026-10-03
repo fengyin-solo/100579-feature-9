@@ -85,13 +85,18 @@ const meta = moduleMeta('settingvalue')
 const columns = ["定值单号", "所属装置", "定值项目", "整定值", "计算依据", "整定人", "审核人", "定值状态"]
 const actions = ["提交整定", "审核定值", "作废定值"]
 const statuses = ["待整定", "整定中", "已审核", "已作废"]
-const stats = [{"label": "待整定定值单", "value": 0}, {"label": "整定中定值单", "value": 0}, {"label": "已作废定值单", "value": 0}]
 
 const rows = ref<EntryRow[]>([])
 const total = ref(0)
 const errorMessage = ref('')
 const filters = ref<Record<string, string>>({})
 const filterFields = columns.slice(0, 3)
+// 统计卡片随清单实时计算，核对不符联动挂入的待整定待办会在这里直接体现。
+const stats = computed(() => [
+  { label: "待整定定值单", value: rows.value.filter((row) => String(row.status) === "待整定").length },
+  { label: "整定中定值单", value: rows.value.filter((row) => String(row.status) === "整定中").length },
+  { label: "已作废定值单", value: rows.value.filter((row) => String(row.status) === "已作废").length },
+])
 const statusSummary = computed(() =>
   statuses.map((status: string) => ({
     status,

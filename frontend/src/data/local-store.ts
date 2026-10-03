@@ -57,3 +57,43 @@ export function resetRows(key: string): EntryRow[] {
 export function storageKey(): string {
   return STORAGE_KEY
 }
+
+// 核对单签字记录：同一变电站同一装置只保留一条，重复提交就地覆盖。
+const SIGN_STORAGE_KEY = 'substation-protection:check-signatures'
+// 无 localStorage（如 SSR / 脚本环境）时的内存兜底。
+let signatureMemory: CheckSignatureRecord[] = []
+
+export type CheckSignatureRecord = {
+  key: string
+  station: string
+  device: string
+  signer: string
+  signedAt: string
+  hasMismatch: boolean
+}
+
+export function listSignatures(): CheckSignatureRecord[] {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return signatureMemory
+  }
+  const raw = window.localStorage.getItem(SIGN_STORAGE_KEY)
+  if (!raw) {
+    return []
+  }
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? (parsed as CheckSignatureRecord[]) : []
+  } catch {
+    return []
+  }
+}
+
+export function saveSignature(record: CheckSignatureRecord): CheckSignatureRecord[] {
+  const next = listSignatures().filter((item) => item.key !== record.key)
+  next.push(record)
+  signatureMemory = next
+  if (typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.setItem(SIGN_STORAGE_KEY, JSON.stringify(next))
+  }
+  return next
+}
